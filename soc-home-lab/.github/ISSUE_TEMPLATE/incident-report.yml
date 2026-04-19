@@ -1,0 +1,84 @@
+name: "🚨 Incident / Simulation Report"
+description: Document a simulated attack and the detection results
+title: "[Simulation] <Attack Name> — <Date>"
+labels: ["simulation"]
+body:
+  - type: markdown
+    attributes:
+      value: Use this to document attack simulations and whether detections fired as expected.
+
+  - type: input
+    id: date
+    attributes:
+      label: Simulation Date
+      placeholder: YYYY-MM-DD
+    validations:
+      required: true
+
+  - type: dropdown
+    id: type
+    attributes:
+      label: Simulation Type
+      options:
+        - Atomic Red Team
+        - Caldera Scenario
+        - Manual
+        - External Tool (specify in description)
+    validations:
+      required: true
+
+  - type: textarea
+    id: objective
+    attributes:
+      label: Objective
+      description: What attack scenario was simulated?
+    validations:
+      required: true
+
+  - type: textarea
+    id: techniques
+    attributes:
+      label: ATT&CK Techniques Used
+      description: List each technique ID and name
+      placeholder: |
+        - T1110.001 — Password Spraying
+        - T1021.001 — Remote Desktop Protocol
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Attack Steps
+      description: Step-by-step commands/actions taken
+    validations:
+      required: true
+
+  - type: textarea
+    id: detections
+    attributes:
+      label: Detection Results
+      description: Which alerts fired? Which were missed?
+      placeholder: |
+        | Technique | Alert Expected | Alert Fired | Rule Name |
+        |-----------|---------------|-------------|-----------|
+        | T1110.001 | Yes | Yes | SSH Brute Force Detected |
+    validations:
+      required: true
+
+  - type: textarea
+    id: gaps
+    attributes:
+      label: Detection Gaps
+      description: What wasn't caught? Create follow-up detection issues.
+
+  - type: textarea
+    id: iocs
+    attributes:
+      label: Indicators of Compromise (IoCs)
+      description: IPs, hashes, domains generated during simulation
+
+  - type: textarea
+    id: lessons
+    attributes:
+      label: Lessons Learned

@@ -1,0 +1,66 @@
+# Secrets & credentials — NEVER commit these
+*.key
+*.pem
+*.crt
+*.p12
+*.pfx
+.env
+.env.*
+secrets/
+credentials/
+**/passwords.txt
+**/api_keys.txt
+
+# Wazuh
+wazuh-install-files/
+*.tar.gz
+
+# Elastic
+*.keystore
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# Ansible
+*.retry
+.vault_pass
+
+# Terraform (if used later)
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editors
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs (real logs with sensitive data)
+*.log
+logs/
+
+# VM snapshots / disk images
+*.ova
+*.vmdk
+*.vdi
+*.qcow2
+
+# Kibana exports with potential data
+dashboards/exports/*.ndjson.bak

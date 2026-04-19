@@ -1,0 +1,43 @@
+name: "✨ Feature Request"
+description: Propose a new capability or integration
+title: "[Feature] <Short description>"
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / motivation
+      description: What gap does this fill?
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+
+  - type: dropdown
+    id: milestone
+    attributes:
+      label: Suggested milestone
+      options:
+        - M1 — Foundation
+        - M2 — Core SIEM
+        - M3 — Log Sources
+        - M4 — Detection Engineering
+        - M5 — Attack Simulations
+        - M6 — SOAR & Threat Intel
+        - M7 — Documentation & Polish
+        - Backlog
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+
+  - type: textarea
+    id: references
+    attributes:
+      label: References / prior art

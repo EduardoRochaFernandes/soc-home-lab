@@ -1,0 +1,31 @@
+title: SSH Brute Force Attack
+id: 3f8d2a1c-9b4e-4f7a-8c2d-1e5f6a3b9c8d
+status: experimental
+description: |
+  Detects a high rate of failed SSH authentication attempts from a single source IP,
+  indicating a brute-force or password spraying attack against SSH.
+
+  Attackers use SSH brute force to gain initial access or move laterally to systems
+  with SSH exposed, targeting weak credentials, default passwords, or known usernames.
+references:
+  - https://attack.mitre.org/techniques/T1110/001/
+  - https://www.cisa.gov/uscert/ncas/alerts/aa22-054a
+author: SOC Home Lab
+date: 2025/01/01
+tags:
+  - attack.credential_access
+  - attack.t1110.001
+logsource:
+  product: linux
+  service: auth
+detection:
+  selection:
+    program: sshd
+    message|contains: 'Failed password'
+  timeframe: 60s
+  condition: selection | count() by src_ip > 5
+falsepositives:
+  - Misconfigured SSH client with incorrect credentials
+  - Automated scripts with hardcoded wrong credentials
+  - Authorized penetration testing (document in change management log)
+level: high

@@ -1,0 +1,52 @@
+name: Validate Sigma Rules
+
+on:
+  pull_request:
+    paths:
+      - 'detections/sigma/**'
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'detections/sigma/**'
+
+jobs:
+  sigma-validation:
+    name: Sigma Rule Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install sigma-cli
+        run: |
+          pip install sigma-cli
+          sigma plugin install elasticsearch
+          sigma plugin install splunk
+
+      - name: Validate all Sigma rules
+        run: |
+          echo "=== Validating Sigma rules ==="
+          find detections/sigma -name "*.yml" | while read rule; do
+            echo "Checking: $rule"
+            sigma check "$rule" || exit 1
+          done
+          echo "=== All rules valid ==="
+
+      - name: Count rules per tactic
+        run: |
+          echo "=== Detection Rule Summary ==="
+          for dir in detections/sigma/*/; do
+            tactic=$(basename "$dir")
+            count=$(find "$dir" -name "*.yml" | wc -l)
+            echo "  $tactic: $count rules"
+          done
+          total=$(find detections/sigma -name "*.yml" | wc -l)
+          echo "  TOTAL: $total rules"

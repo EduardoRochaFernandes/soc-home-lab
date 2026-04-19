@@ -1,0 +1,199 @@
+<!-- 
+  SOC Home Lab — Custom Wazuh Rules
+  File: /var/ossec/etc/rules/local_rules.xml
+  
+  Rule ID range: 100000-199999 (reserved for local rules)
+  
+  These rules complement the built-in Wazuh ruleset.
+  Sigma rules in detections/sigma/ are the canonical source —
+  these are the Wazuh-converted equivalents.
+-->
+
+<group name="soc-lab,">
+
+  <!-- ============================================================
+       CREDENTIAL ACCESS — T1110 Brute Force
+       SOC-050: SSH Brute Force
+       ============================================================ -->
+  <rule id="100050" level="10" frequency="6" timeframe="60">
+    <if_matched_sid>5716</if_matched_sid>
+    <same_source_ip />
+    <description>SOC-050: SSH brute force attack detected — multiple failures from same IP</description>
+    <mitre>
+      <id>T1110.001</id>
+    </mitre>
+    <group>authentication_failures,brute_force,credential_access,</group>
+  </rule>
+
+  <rule id="100051" level="14" frequency="3" timeframe="120">
+    <if_matched_sid>5715</if_matched_sid>
+    <same_source_ip />
+    <description>SOC-050: SSH brute force — multiple invalid users from same IP (likely scanning)</description>
+    <mitre>
+      <id>T1110.003</id>
+    </mitre>
+    <group>authentication_failures,brute_force,credential_access,</group>
+  </rule>
+
+  <!-- ============================================================
+       DEFENSE EVASION — T1070.001 Log Clearing
+       SOC-040: Audit Log Tamper (Linux)
+       ============================================================ -->
+  <rule id="100040" level="15">
+    <if_group>audit</if_group>
+    <match>type=SERVICE_STOP</match>
+    <field name="exe">/usr/sbin/auditd</field>
+    <description>SOC-041: auditd service stopped — possible defense evasion</description>
+    <mitre>
+      <id>T1562.012</id>
+    </mitre>
+    <group>defense_evasion,audit_tampering,</group>
+  </rule>
+
+  <rule id="100041" level="15">
+    <if_group>audit</if_group>
+    <match>type=CONFIG_CHANGE</match>
+    <description>SOC-041: auditd configuration changed</description>
+    <mitre>
+      <id>T1562.012</id>
+    </mitre>
+    <group>defense_evasion,audit_tampering,</group>
+  </rule>
+
+  <!-- ============================================================
+       PERSISTENCE — T1053.003 Cron Job
+       SOC-020: Crontab Modification
+       ============================================================ -->
+  <rule id="100020" level="8">
+    <if_group>audit</if_group>
+    <match>key=cron</match>
+    <description>SOC-020: Crontab or cron directory modified — check for persistence</description>
+    <mitre>
+      <id>T1053.003</id>
+    </mitre>
+    <group>persistence,cron,</group>
+  </rule>
+
+  <!-- ============================================================
+       PERSISTENCE — T1098.004 SSH Keys
+       SOC-022: SSH Authorized Keys Modified
+       ============================================================ -->
+  <rule id="100022" level="12">
+    <if_group>syscheck</if_group>
+    <match>authorized_keys</match>
+    <description>SOC-022: SSH authorized_keys file modified — possible persistence mechanism</description>
+    <mitre>
+      <id>T1098.004</id>
+    </mitre>
+    <group>persistence,ssh,</group>
+  </rule>
+
+  <!-- ============================================================
+       CREDENTIAL ACCESS — T1003.008 /etc/shadow
+       SOC-052: Shadow/Passwd Access
+       ============================================================ -->
+  <rule id="100052" level="12">
+    <if_group>audit</if_group>
+    <match>key=identity</match>
+    <field name="name">/etc/shadow|/etc/passwd|/etc/gshadow</field>
+    <description>SOC-052: Sensitive credential file accessed — possible credential dumping</description>
+    <mitre>
+      <id>T1003.008</id>
+    </mitre>
+    <group>credential_access,</group>
+  </rule>
+
+  <!-- ============================================================
+       PRIVILEGE ESCALATION — T1548.003 Sudo Abuse
+       SOC-030: Unusual Sudo Usage
+       ============================================================ -->
+  <rule id="100030" level="8">
+    <decoded_as>sudo</decoded_as>
+    <match>COMMAND</match>
+    <regex>COMMAND=(/bin/bash|/bin/sh|/usr/bin/python|/usr/bin/perl|/usr/bin/ruby|su -)</regex>
+    <description>SOC-030: Sudo used to spawn shell or interpreter — possible privilege escalation</description>
+    <mitre>
+      <id>T1548.003</id>
+    </mitre>
+    <group>privilege_escalation,sudo,</group>
+  </rule>
+
+  <!-- ============================================================
+       EXECUTION — T1059.004 Bash Reverse Shell
+       SOC-012: Reverse Shell Patterns
+       ============================================================ -->
+  <rule id="100012" level="14">
+    <if_group>audit</if_group>
+    <match>key=execution</match>
+    <regex>a[0-9]=/dev/tcp/|bash -i|/dev/tcp|nc -e /bin/|ncat -e|bash -c.*>&amp;</regex>
+    <description>SOC-012: Reverse shell pattern detected in command execution</description>
+    <mitre>
+      <id>T1059.004</id>
+    </mitre>
+    <group>execution,reverse_shell,</group>
+  </rule>
+
+  <!-- ============================================================
+       COLLECTION — T1074 Data Staging
+       SOC-080: Large Archive Creation
+       ============================================================ -->
+  <rule id="100080" level="6">
+    <if_group>audit</if_group>
+    <match>key=execution</match>
+    <regex>comm="tar"|comm="zip"|comm="gzip"|comm="7z"</regex>
+    <description>SOC-080: Archive utility executed — monitor for large data staging</description>
+    <mitre>
+      <id>T1074</id>
+    </mitre>
+    <group>collection,staging,</group>
+  </rule>
+
+  <!-- ============================================================
+       DISCOVERY — T1046 Network Scan
+       SOC-060: Internal Network Scanning
+       ============================================================ -->
+  <rule id="100060" level="8">
+    <if_group>audit</if_group>
+    <match>key=execution</match>
+    <regex>comm="nmap"|comm="masscan"|comm="netcat"|comm="nc"</regex>
+    <description>SOC-060: Network scanning tool executed on host</description>
+    <mitre>
+      <id>T1046</id>
+    </mitre>
+    <group>discovery,network_scan,</group>
+  </rule>
+
+  <!-- ============================================================
+       KERNEL MODULE — T1547.006
+       ============================================================ -->
+  <rule id="100100" level="12">
+    <if_group>audit</if_group>
+    <match>key=kernel_modules</match>
+    <description>Kernel module loaded or unloaded — verify legitimacy</description>
+    <mitre>
+      <id>T1547.006</id>
+    </mitre>
+    <group>persistence,kernel_module,</group>
+  </rule>
+
+  <!-- ============================================================
+       FILE INTEGRITY — High-value paths
+       ============================================================ -->
+  <rule id="100200" level="10">
+    <if_group>syscheck</if_group>
+    <match>/etc/sudoers|/etc/passwd|/etc/shadow|/etc/hosts|/etc/crontab</match>
+    <description>FIM: Critical system file modified — immediate review required</description>
+    <group>fim,critical_file,</group>
+  </rule>
+
+  <rule id="100201" level="8">
+    <if_group>syscheck</if_group>
+    <match>/usr/bin|/usr/sbin|/bin|/sbin</match>
+    <description>FIM: System binary directory modified — possible trojanised binary</description>
+    <mitre>
+      <id>T1543</id>
+    </mitre>
+    <group>fim,system_binary,</group>
+  </rule>
+
+</group>

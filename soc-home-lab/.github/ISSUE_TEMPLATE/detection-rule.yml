@@ -1,0 +1,113 @@
+name: "🔍 Detection Rule"
+description: Propose or track a new detection rule
+title: "[Detection] T<ID> — <Short Name>"
+labels: ["detection"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template to propose, track and document a new detection rule.
+
+  - type: input
+    id: technique-id
+    attributes:
+      label: ATT&CK Technique ID
+      description: e.g. T1110.001
+      placeholder: T1xxx.xxx
+    validations:
+      required: true
+
+  - type: input
+    id: technique-name
+    attributes:
+      label: ATT&CK Technique Name
+      placeholder: Password Spraying
+    validations:
+      required: true
+
+  - type: dropdown
+    id: tactic
+    attributes:
+      label: Tactic
+      options:
+        - Initial Access
+        - Execution
+        - Persistence
+        - Privilege Escalation
+        - Defense Evasion
+        - Credential Access
+        - Discovery
+        - Lateral Movement
+        - Collection
+        - Command and Control
+        - Exfiltration
+        - Impact
+    validations:
+      required: true
+
+  - type: dropdown
+    id: log-source
+    attributes:
+      label: Log Source
+      multiple: true
+      options:
+        - Windows Event Logs
+        - Sysmon
+        - Linux auditd
+        - Linux syslog
+        - Suricata (network)
+        - Zeek (network)
+        - nginx access/error logs
+        - Wazuh alerts
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What does this detect?
+      description: Describe the malicious behaviour and why it matters
+    validations:
+      required: true
+
+  - type: textarea
+    id: sigma-rule
+    attributes:
+      label: Proposed Sigma Rule (draft)
+      description: Paste a draft Sigma rule or leave blank if still researching
+      render: yaml
+
+  - type: textarea
+    id: false-positives
+    attributes:
+      label: Known False Positives
+      description: What legitimate activity could trigger this rule?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - critical
+        - high
+        - medium
+        - low
+        - informational
+    validations:
+      required: true
+
+  - type: textarea
+    id: simulation
+    attributes:
+      label: Simulation Plan
+      description: How will you validate this rule fires? (Atomic Red Team test, manual command, etc.)
+    validations:
+      required: true
+
+  - type: textarea
+    id: references
+    attributes:
+      label: References
+      description: Links to ATT&CK page, blog posts, tooling
