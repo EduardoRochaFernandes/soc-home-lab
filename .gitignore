@@ -6,6 +6,7 @@
 *.pfx
 .env
 .env.*
+!.env.example
 secrets/
 credentials/
 **/passwords.txt

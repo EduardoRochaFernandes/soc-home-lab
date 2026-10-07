@@ -1,0 +1,9 @@
+# Everything needed to lint, test and run the Python tooling in this repository.
+requests>=2.31.0
+python-dotenv>=1.0.0
+PyGithub>=2.1.1
+pyyaml>=6.0
+pytest>=8.0
+ruff>=0.5
+yamllint>=1.35
+sigma-cli>=1.0

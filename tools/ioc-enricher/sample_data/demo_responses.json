@@ -1,0 +1,63 @@
+{
+  "_comment": "Synthetic responses shaped like the normalised output of the real API helpers. Not real threat intelligence.",
+  "abuseipdb": {
+    "192.0.2.10": {
+      "abuse_confidence_score": 97,
+      "country_code": "ZZ",
+      "isp": "Example Hosting (synthetic)",
+      "total_reports": 412,
+      "last_reported": "2026-01-01T00:00:00+00:00",
+      "is_whitelisted": false,
+      "usage_type": "Data Center/Web Hosting/Transit"
+    },
+    "198.51.100.23": {
+      "abuse_confidence_score": 0,
+      "country_code": "ZZ",
+      "isp": "Example Residential ISP (synthetic)",
+      "total_reports": 0,
+      "last_reported": null,
+      "is_whitelisted": false,
+      "usage_type": "Fixed Line ISP"
+    },
+    "203.0.113.77": {
+      "abuse_confidence_score": 64,
+      "country_code": "ZZ",
+      "isp": "Example Cloud (synthetic)",
+      "total_reports": 23,
+      "last_reported": "2026-01-02T00:00:00+00:00",
+      "is_whitelisted": false,
+      "usage_type": "Data Center/Web Hosting/Transit"
+    }
+  },
+  "shodan": {
+    "192.0.2.10": {
+      "org": "Example Hosting (synthetic)",
+      "country_name": "Nowhere",
+      "open_ports": [22, 80, 4444],
+      "hostnames": [],
+      "tags": ["scanner"],
+      "vulns": []
+    },
+    "203.0.113.77": {
+      "org": "Example Cloud (synthetic)",
+      "country_name": "Nowhere",
+      "open_ports": [443],
+      "hostnames": [],
+      "tags": ["cloud"],
+      "vulns": []
+    }
+  },
+  "virustotal": {
+    "0123456789abcdef0123456789abcdef": {
+      "malicious": 52,
+      "suspicious": 1,
+      "undetected": 14,
+      "harmless": 0,
+      "meaningful_name": "dropper.exe (synthetic)",
+      "type_description": "Win32 EXE"
+    },
+    "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef": {
+      "result": "Not found in VirusTotal"
+    }
+  }
+}

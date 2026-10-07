@@ -2,13 +2,17 @@ extends: default
 
 rules:
   line-length:
-    max: 150
+    max: 160
     level: warning
   truthy:
-    allowed-values: ['true', 'false', 'yes', 'no']
-    level: warning
+    allowed-values: ['true', 'false']
+    check-keys: false
   comments:
     min-spaces-from-content: 1
+  comments-indentation: disable
+  document-start: disable
+  new-lines:
+    type: unix
   braces:
     min-spaces-inside: 0
     max-spaces-inside: 1
@@ -16,4 +20,3 @@ rules:
 ignore: |
   .git/
   node_modules/
-  infrastructure/ansible/inventory/

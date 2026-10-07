@@ -11,10 +11,12 @@ Usage:
     python3 ioc_enricher.py --hash d41d8cd98f00b204e9800998ecf8427e
     python3 ioc_enricher.py --file iocs.txt
     python3 ioc_enricher.py --ip 1.2.3.4 --output json
+    python3 ioc_enricher.py --demo            # offline, bundled synthetic sample data
 
 Configuration:
-    Copy .env.example to .env and add your API keys.
+    Copy .env.example (repo root) to .env and add your API keys.
     All APIs used have a free tier — no paid keys required for basic use.
+    --demo needs no keys and makes no network calls.
 """
 
 import argparse
@@ -23,6 +25,7 @@ import os
 import sys
 import time
 from dataclasses import dataclass, asdict
+from pathlib import Path
 from typing import Optional
 import ipaddress
 
@@ -39,6 +42,8 @@ load_dotenv()
 ABUSEIPDB_KEY = os.getenv("ABUSEIPDB_API_KEY", "")
 VIRUSTOTAL_KEY = os.getenv("VIRUSTOTAL_API_KEY", "")
 SHODAN_KEY = os.getenv("SHODAN_API_KEY", "")
+
+SAMPLE_DIR = Path(__file__).resolve().parent / "sample_data"
 
 REQUEST_TIMEOUT = 10
 RATE_LIMIT_DELAY = 1  # seconds between API calls
@@ -154,15 +159,28 @@ def enrich_ip_shodan(ip: str) -> dict:
         return {"error": str(e)}
 
 
-def enrich_ioc(ioc: str, ioc_type: str) -> EnrichmentResult:
+def load_demo_data() -> dict:
+    """Load the bundled synthetic API responses used by --demo (no network, no keys)."""
+    with open(SAMPLE_DIR / "demo_responses.json", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def enrich_ioc(ioc: str, ioc_type: str, demo_data: Optional[dict] = None) -> EnrichmentResult:
+    """Enrich one IoC. If demo_data is given, use it instead of calling the live APIs."""
     result = EnrichmentResult(ioc=ioc, ioc_type=ioc_type)
     enrichments = {}
+    delay = 0 if demo_data is not None else RATE_LIMIT_DELAY
+
+    def lookup(source: str, live_fn):
+        if demo_data is None:
+            return live_fn(ioc)
+        return demo_data.get(source, {}).get(ioc, {"result": "No demo data for this IoC"})
 
     if ioc_type == "ip":
-        print(f"  [*] Checking AbuseIPDB...")
-        abuse = enrich_ip_abuseipdb(ioc)
+        print("  [*] Checking AbuseIPDB...")
+        abuse = lookup("abuseipdb", enrich_ip_abuseipdb)
         enrichments["abuseipdb"] = abuse
-        time.sleep(RATE_LIMIT_DELAY)
+        time.sleep(delay)
 
         if not abuse.get("error"):
             score = abuse.get("abuse_confidence_score", 0)
@@ -172,20 +190,20 @@ def enrich_ioc(ioc: str, ioc_type: str) -> EnrichmentResult:
             result.reports = abuse.get("total_reports")
             result.last_seen = abuse.get("last_reported")
 
-        print(f"  [*] Checking Shodan...")
-        shodan = enrich_ip_shodan(ioc)
+        print("  [*] Checking Shodan...")
+        shodan = lookup("shodan", enrich_ip_shodan)
         enrichments["shodan"] = shodan
-        time.sleep(RATE_LIMIT_DELAY)
+        time.sleep(delay)
 
         if not shodan.get("error"):
             result.asn = shodan.get("org")
             result.tags = shodan.get("tags", [])
 
     elif ioc_type == "hash":
-        print(f"  [*] Checking VirusTotal...")
-        vt = enrich_hash_virustotal(ioc)
+        print("  [*] Checking VirusTotal...")
+        vt = lookup("virustotal", enrich_hash_virustotal)
         enrichments["virustotal"] = vt
-        time.sleep(RATE_LIMIT_DELAY)
+        time.sleep(delay)
 
         if not vt.get("error") and "malicious" in vt:
             result.malicious = vt["malicious"] > 0
@@ -224,6 +242,10 @@ def print_result(result: EnrichmentResult, output_format: str = "table"):
 
 
 def main():
+    # Verdict icons are non-ASCII; make sure legacy Windows consoles don't crash on them.
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
     parser = argparse.ArgumentParser(
         description="IOC Enricher — SOC Home Lab",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -231,17 +253,28 @@ def main():
     )
     parser.add_argument("--ip", help="IP address to enrich")
     parser.add_argument("--hash", help="File hash (MD5 or SHA256) to enrich")
-    parser.add_argument("--domain", help="Domain to enrich (coming soon)")
+    parser.add_argument("--domain", help="Domain to enrich (not implemented yet: no provider is queried)")
     parser.add_argument("--file", help="File with one IoC per line")
     parser.add_argument("--output", choices=["table", "json"], default="table")
+    parser.add_argument(
+        "--demo",
+        action="store_true",
+        help="Offline demo: enrich the bundled synthetic sample IoCs (no API keys, no network)",
+    )
 
     args = parser.parse_args()
 
-    if not any([args.ip, args.hash, args.domain, args.file]):
+    if not any([args.ip, args.hash, args.domain, args.file, args.demo]):
         parser.print_help()
         sys.exit(1)
 
     iocs_to_process = []
+    demo_data = None
+
+    if args.demo:
+        demo_data = load_demo_data()
+        args.file = args.file or str(SAMPLE_DIR / "sample_iocs.txt")
+        print("[DEMO MODE] Using bundled synthetic data. Verdicts below are NOT real threat intelligence.")
 
     if args.ip:
         if not is_valid_ip(args.ip):
@@ -269,13 +302,13 @@ def main():
             print(f"Error: File '{args.file}' not found")
             sys.exit(1)
 
-    print(f"\n[SOC Home Lab — IOC Enricher]")
+    print("\n[SOC Home Lab — IOC Enricher]")
     print(f"Processing {len(iocs_to_process)} IoC(s)...\n")
 
     results = []
     for ioc, ioc_type in iocs_to_process:
         print(f"[*] Enriching {ioc_type.upper()}: {ioc}")
-        result = enrich_ioc(ioc, ioc_type)
+        result = enrich_ioc(ioc, ioc_type, demo_data)
         results.append(result)
         print_result(result, args.output)
 

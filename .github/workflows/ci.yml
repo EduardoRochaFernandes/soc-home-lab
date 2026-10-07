@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lint-and-test:
+    name: Lint and test (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+      - name: yamllint (workflows, issue templates, Sigma rules, Ansible)
+        run: yamllint -c .yamllint.yml .
+      - name: ruff
+        run: ruff check .
+      - name: pytest (docs links, detection content, IOC enricher)
+        run: pytest -q
+      - name: IOC enricher offline demo
+        run: python tools/ioc-enricher/ioc_enricher.py --demo > /dev/null
+
+  sigma:
+    name: Sigma rules
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements-dev.txt
+      - name: sigma check
+        # The attacktag validator is excluded on purpose: it compares tags with the *latest* ATT&CK release
+        # downloaded at run time, which has re-organised tactics since the rules were written.
+        run: sigma check -x attacktag detections/sigma
+      - name: Convert Windows rules to Elasticsearch (Lucene) as a smoke test
+        run: |
+          sigma plugin install elasticsearch
+          sigma convert -t lucene -p ecs_windows detections/sigma/execution detections/sigma/defense-evasion \
+            detections/sigma/credential-access/SOC-051-mimikatz-indicators.yml
+
+  suricata:
+    name: Suricata rule syntax
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Suricata
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y suricata
+          suricata --build-info | head -n 3
+      - name: Test configuration with the local rules loaded
+        run: sudo suricata -T -c /etc/suricata/suricata.yaml -S "$PWD/detections/suricata/local.rules" -l /tmp
+
+  ansible:
+    name: Ansible syntax check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install ansible-core
+      - run: ansible-playbook -i infrastructure/ansible/inventory/hosts.yml infrastructure/ansible/deploy-wazuh-agents.yml --syntax-check
