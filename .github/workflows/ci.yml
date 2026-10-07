@@ -63,7 +63,7 @@ jobs:
           sudo apt-get install -y suricata
           suricata --build-info | head -n 3
       - name: Test configuration with the local rules loaded
-        run: sudo suricata -T -c /etc/suricata/suricata.yaml -S "$PWD/detections/suricata/local.rules" -l /tmp
+        run: sudo suricata -T -v -c /etc/suricata/suricata.yaml -S "$PWD/detections/suricata/local.rules" -l /tmp
 
   ansible:
     name: Ansible syntax check
