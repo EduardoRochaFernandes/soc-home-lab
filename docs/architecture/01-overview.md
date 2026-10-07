@@ -6,7 +6,7 @@ This lab is designed to simulate a small-to-medium enterprise Security Operation
 
 - **Centralised log collection** from Windows, Linux, and network devices
 - **Host-based intrusion detection** via Wazuh agents
-- **Network intrusion detection** via Suricata on a dedicated sensor
+- **Network intrusion detection** via Suricata on the Linux victim VM
 - **Threat intelligence** enrichment via MISP
 - **Case management** and semi-automated response via TheHive + Cortex
 
@@ -30,8 +30,8 @@ This lab is designed to simulate a small-to-medium enterprise Security Operation
 | Elasticsearch | Storage | Backend index for all log data |
 | Logstash | Pipeline | Enrichment, parsing, routing before indexing |
 | Kibana | Visualisation | Dashboards, alert review, KQL/EQL queries |
-| Suricata | Network | NIDS running in IDS mode on the virtual switch |
-| Zeek | Network | Metadata extraction (DNS, HTTP, SSL, conn logs) |
+| Suricata | Network | NIDS in IDS mode on the Linux victim VM (EVE JSON shipped by Filebeat) |
+| Zeek | Network | Planned: metadata extraction (DNS, HTTP, SSL, conn logs); no setup guide yet |
 | Filebeat | Agent | Ships Linux and nginx logs to Logstash |
 | Winlogbeat | Agent | Ships Windows Event Logs to Logstash |
 | TheHive | IR | Case management, alert aggregation, task tracking |
@@ -42,41 +42,84 @@ This lab is designed to simulate a small-to-medium enterprise Security Operation
 
 ## Network Topology
 
+```mermaid
+flowchart LR
+  subgraph HOST["Hypervisor host (VirtualBox or Proxmox) - host-only network 192.168.56.0/24"]
+    direction LR
+    KALI["Kali attacker<br/>.40<br/>Atomic Red Team, Caldera, manual tools"]
+    WIN["Windows 10 victim<br/>.20<br/>Sysmon, Winlogbeat, Wazuh agent"]
+    LIN["Ubuntu 22.04 victim<br/>.30<br/>auditd, nginx, Filebeat, Wazuh agent, Suricata"]
+    SIEM["SIEM server (Ubuntu 22.04)<br/>.10<br/>Wazuh, ELK, TheHive, Cortex, MISP"]
+  end
+  KALI -- "attack traffic" --> WIN
+  KALI -- "attack traffic" --> LIN
+  WIN -- "telemetry" --> SIEM
+  LIN -- "telemetry" --> SIEM
 ```
-Host-only Network: 192.168.56.0/24
 
-  .10  SIEM Server    (Ubuntu 22.04 — Wazuh + ELK + TheHive + MISP)
-  .20  Windows Victim (Windows 10 — Sysmon + Wazuh Agent + Winlogbeat)
-  .30  Linux Victim   (Ubuntu 22.04 — auditd + Wazuh Agent + Filebeat + Suricata)
-  .40  Kali Attacker  (Kali Linux — Atomic Red Team + Caldera + manual tools)
-```
-
-All VMs are on a **host-only** network with no internet access except the SIEM server, which has a second NAT adapter for package installation.
+All VMs sit on a **host-only** network. Only the SIEM server gets a second NAT adapter, used for package installation
+(disable it afterwards, see [setup step 01](../setup/01-proxmox-setup.md)).
 
 ---
 
 ## Data Flow
 
-```
-Windows Victim                    SIEM Server
-┌──────────────┐                 ┌──────────────────────────────────┐
-│ Sysmon       ├─ Winlogbeat ───►│ Logstash :5044                   │
-│ Event Logs   │                 │   ↓ (parse + enrich)             │
-│ Wazuh Agent  ├──────────────►  │ Elasticsearch                    │
-└──────────────┘  (1514/UDP)     │   ↓                              │
-                                 │ Kibana (dashboards)              │
-Linux Victim                     │   ↓                              │
-┌──────────────┐                 │ Wazuh Manager (alerts)           │
-│ auditd       ├─ Filebeat ────► │   ↓                              │
-│ syslog/auth  │                 │ TheHive (cases)                  │
-│ nginx logs   │                 │   ↓                              │
-│ Suricata EVE ├─ Filebeat ────► │ Cortex (enrichment)              │
-│ Wazuh Agent  ├──────────────►  │   ↓                              │
-└──────────────┘                 │ MISP (threat intel)              │
-                                 └──────────────────────────────────┘
+```mermaid
+flowchart LR
+  subgraph WIN["Windows victim .20"]
+    SYSMON["Sysmon + Windows Event Logs"] --> WLB["Winlogbeat"]
+    WAW["Wazuh agent"]
+  end
+  subgraph LIN["Linux victim .30"]
+    AUD["auditd"] --> WAL["Wazuh agent"]
+    LOGS["auth.log, syslog, nginx logs"] --> FB["Filebeat"]
+    SUR["Suricata (EVE JSON)"] --> FB
+  end
+  subgraph SIEM["SIEM server .10"]
+    LS["Logstash :5044"] --> ES["Elasticsearch :9201"] --> KB["Kibana :5601"]
+    WM["Wazuh manager :1514/1515"] --> WI["Wazuh indexer :9200"] --> WD["Wazuh dashboard :443"]
+    TH["TheHive :9000"] --> CX["Cortex :9001"]
+    MISP["MISP"]
+  end
+  WLB -- "Beats" --> LS
+  FB -- "Beats" --> LS
+  WAW -- "1514 / 1515" --> WM
+  WAL -- "1514 / 1515" --> WM
+  WM -- "python integration" --> TH
+  TH -. "lookups" .-> MISP
+  CX -. "analyzers" .-> TH
 ```
 
+Two parallel pipelines are deliberate: the Wazuh pipeline (agent -> manager -> indexer -> dashboard) handles host detections and
+alerting, while the standalone ELK pipeline (Beats -> Logstash -> Elasticsearch -> Kibana) holds raw logs for hunting and
+dashboards. Ports for the two stacks are separated (9200 vs 9201) so both fit on one host.
+
+### Ports at a glance
+
+| Service | Port | Where it is configured |
+|---------|------|------------------------|
+| Wazuh agent to manager | 1514 (UDP/TCP), 1515 (enrolment) | [02](../setup/02-siem-server.md), [03](../setup/03-wazuh-install.md) |
+| Wazuh indexer | 9200 | [04](../setup/04-elk-install.md) |
+| Standalone Elasticsearch | 9201 (transport 9301) | [04](../setup/04-elk-install.md) |
+| Logstash Beats input | 5044 | [04](../setup/04-elk-install.md) |
+| Kibana | 5601 | [04](../setup/04-elk-install.md) |
+| Wazuh dashboard | 443 | [03](../setup/03-wazuh-install.md) |
+| TheHive / Cortex | 9000 / 9001 | [06](../setup/06-thehive-misp.md) |
+| MISP | 443 (see known gaps) | [06](../setup/06-thehive-misp.md) |
+
 ---
+
+## Known Gaps and Inconsistencies
+
+These come from reading the documents against each other, not from running the lab:
+
+- **Port 443 is claimed twice.** The Wazuh dashboard and MISP (default web install) both use 443 on the SIEM host. One of them
+  needs a different port or a reverse proxy.
+- **Zeek is listed but has no setup guide.** It appears in the stack table and in the SOC-090 rule idea, but no guide installs it.
+- **Suricata placement differs between documents.** Setup guide 05 runs Suricata on the Linux victim; older text in this file
+  described a dedicated sensor. The diagrams above follow the setup guide.
+- **The 12 GB SIEM VM is an estimate.** Wazuh, a second Elasticsearch, Logstash, Kibana, TheHive (Cassandra), Cortex and MISP on
+  one 12 GB VM has not been measured and is likely tight.
 
 ## Hardware Requirements
 
@@ -101,16 +144,15 @@ Linux Victim                     │   ↓                              │
 
 - All inter-VM traffic stays on host-only network
 - Wazuh agent communication is encrypted (TLS)
-- Elasticsearch is not exposed outside the SIEM VM
-- Kibana and TheHive are accessible only from host machine via port forwarding
-- No credentials are stored in this repository (see `.gitignore`)
+- Elasticsearch is intended to be reachable only from the lab network (ufw rules in setup guide 02); xpack security is
+  disabled on the standalone Elasticsearch for the lab (see setup guide 04), which is not acceptable outside a lab
+- Kibana and TheHive are meant to be reached only from the lab network (ufw rules in setup guide 02)
+- No credentials are stored in this repository (see `.gitignore` and `.env.example`)
 
 ---
 
 ## Related Documents
 
-- [Network Diagram](02-network-diagram.md)
-- [Data Flow Detail](03-data-flow.md)
 - [ADR-001: Why Wazuh over pure OSSEC](adr/ADR-001-wazuh-over-ossec.md)
 - [ADR-002: Why TheHive for case management](adr/ADR-002-thehive-case-management.md)
 - [ADR-003: Sigma as canonical rule format](adr/ADR-003-sigma-canonical-format.md)

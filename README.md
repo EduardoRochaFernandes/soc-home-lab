@@ -1,179 +1,198 @@
-# 🛡️ SOC Home Lab — Open-Source SIEM & Detection Engineering Platform
+# SOC Home Lab
 
-<div align="center">
-
-![Status](https://img.shields.io/badge/status-active-brightgreen)
-![License](https://img.shields.io/badge/license-MIT-blue)
-![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows-lightgrey)
+[![CI](https://github.com/EduardoRochaFernandes/soc-home-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/EduardoRochaFernandes/soc-home-lab/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 ![Stack](https://img.shields.io/badge/stack-Wazuh%20%7C%20ELK%20%7C%20Suricata%20%7C%20TheHive%20%7C%20MISP-blueviolet)
-![MITRE ATT&CK](https://img.shields.io/badge/MITRE%20ATT%26CK-mapped-red)
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/EduardoRochaFernandes/soc-home-lab)
 
-**A fully documented, production-grade Security Operations Center built from scratch.**  
-Detection engineering · Incident response · Threat intelligence · SOAR automation
+**An open-source SOC home lab design: Wazuh, ELK, Suricata, TheHive, Cortex and MISP on four VMs, with step-by-step setup guides,
+detection rules mapped to MITRE ATT&CK, runbooks and attack-simulation playbooks.**
 
-[Architecture](#architecture) · [Setup Guide](docs/setup/) · [Detection Rules](detections/) · [Runbooks](docs/runbooks/) · [Milestones](#roadmap)
+A first-year degree project in cybersecurity. It is a **documented design plus working detection content and tooling**, not a
+packaged product. A full SOC stack needs 24-32 GB of RAM and several VMs, so it cannot run in a Codespace or in `docker compose`.
+What you can run with one click is the part that does not need the VMs: validate the detection rules and try the IOC enricher.
 
-</div>
+## Try it in one click (no VMs needed)
 
----
+1. Open the repository in a Codespace: [codespaces.new/EduardoRochaFernandes/soc-home-lab](https://codespaces.new/EduardoRochaFernandes/soc-home-lab)
+2. The dev container installs the dependencies and runs the offline IOC enricher demo automatically.
+3. Then, in the terminal:
 
-## 📖 Overview
-
-This project is a complete, open-source SOC home lab built on commodity hardware using industry-standard tools. It was designed to mirror real-world Security Operations Center environments and serve as a hands-on learning platform for detection engineering, incident response, and threat intelligence operations.
-
-**What makes this different from tutorials:**
-- Every detection rule is mapped to MITRE ATT&CK and validated against real attack simulations
-- Full incident response pipeline from alert → triage → case → post-mortem
-- Architecture decisions are documented in [ADRs](docs/architecture/adr/)
-- Commits follow [Conventional Commits](https://www.conventionalcommits.org/) — the project history is readable
-- All attack simulations are documented with expected detections, so you can reproduce results
-
----
-
-## 🏗️ Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                     Proxmox / VirtualBox Host                        │
-│                                                                       │
-│  ┌─────────────────────┐   ┌──────────────┐   ┌──────────────────┐ │
-│  │    SIEM Server       │   │ Windows 10   │   │  Ubuntu 22.04    │ │
-│  │                      │   │  (Victim)    │   │  (Victim)        │ │
-│  │  • Wazuh Manager     │   │              │   │                  │ │
-│  │  • Elasticsearch     │◄──│• Sysmon      │   │• auditd          │ │
-│  │  • Kibana            │   │• Winlogbeat  │   │• Filebeat        │ │
-│  │  • Logstash          │◄──│• Wazuh Agent │◄──│• Wazuh Agent     │ │
-│  │  • TheHive           │   │              │   │• Suricata (NIDS) │ │
-│  │  • Cortex            │   └──────────────┘   │• nginx           │ │
-│  │  • MISP              │                       └──────────────────┘ │
-│  └─────────────────────┘                                             │
-│                                                                       │
-│  ┌─────────────────────┐                                             │
-│  │  Kali Linux          │                                            │
-│  │  (Attack Platform)   │                                            │
-│  │  • Atomic Red Team   │                                            │
-│  │  • Caldera           │                                            │
-│  └─────────────────────┘                                             │
-└─────────────────────────────────────────────────────────────────────┘
+```bash
+make check     # yamllint + ruff + pytest + Sigma validation/conversion (what CI runs)
+make demo      # IOC enricher on bundled synthetic data: no API keys, no network
 ```
 
-See [Architecture Overview](docs/architecture/01-overview.md) for full details, network topology, and data flow.
+Locally you only need Python 3.11+ and `make` (run `make setup` first, which does `pip install -r requirements-dev.txt`).
 
----
+## What is in this repository
 
-## 🧱 Stack
+| Area | What exists | Where |
+|------|-------------|-------|
+| Architecture | Overview with Mermaid diagrams, ports, data flow, ADRs | [docs/architecture/](docs/architecture/01-overview.md) |
+| Setup guides | 8 ordered guides: hypervisor, SIEM host, Wazuh, ELK, Suricata, TheHive/Cortex/MISP, Windows and Linux agents | [docs/setup/](docs/setup/) |
+| Detection rules | 4 Sigma rules, 14 Wazuh rules, 12 Suricata rules, Elastic queries | [detections/](detections/), [catalog](docs/detections/catalog.md) |
+| Runbooks | SSH brute force, suspicious PowerShell | [docs/runbooks/](docs/runbooks/) |
+| Simulations | Manual playbooks for SSH brute force and encoded PowerShell | [simulations/manual/](simulations/manual/) |
+| Threat intel | MISP feed notes | [threat-intel/](threat-intel/misp-feeds.md) |
+| Tooling | `ioc-enricher` (AbuseIPDB, Shodan, VirusTotal) with an offline demo mode; Ansible playbook for Wazuh Linux agents | [tools/](tools/ioc-enricher/), [infrastructure/](infrastructure/) |
 
-| Component | Role | Version |
-|-----------|------|---------|
-| [Wazuh](https://wazuh.com/) | HIDS, FIM, Vulnerability Detection, Agent Management | 4.7.x |
-| [Elasticsearch](https://www.elastic.co/) | Log storage and search backend | 8.x |
-| [Kibana](https://www.elastic.co/kibana) | Dashboards and visualisation | 8.x |
-| [Logstash](https://www.elastic.co/logstash) | Log ingestion and enrichment pipelines | 8.x |
-| [Suricata](https://suricata.io/) | Network Intrusion Detection System (NIDS) | 7.x |
-| [Zeek](https://zeek.org/) | Network traffic analysis and metadata | 6.x |
-| [TheHive](https://thehive-project.org/) | Case management and incident response | 5.x |
-| [Cortex](https://github.com/TheHive-Project/Cortex) | Automated observable analysis | 3.x |
-| [MISP](https://www.misp-project.org/) | Threat intelligence platform and IoC sharing | 2.4.x |
-| [Winlogbeat](https://www.elastic.co/beats/winlogbeat) | Windows event log shipper | 8.x |
-| [Filebeat](https://www.elastic.co/beats/filebeat) | Linux log shipper | 8.x |
-| [Sysmon](https://learn.microsoft.com/en-us/sysinternals/downloads/sysmon) | Enhanced Windows telemetry | Latest |
+## Architecture
 
----
+```mermaid
+flowchart LR
+  KALI["Kali attacker .40"] -- "attack traffic" --> WIN["Windows 10 victim .20<br/>Sysmon, Winlogbeat, Wazuh agent"]
+  KALI -- "attack traffic" --> LIN["Ubuntu victim .30<br/>auditd, nginx, Filebeat, Wazuh agent, Suricata"]
+  WIN -- "Beats :5044" --> LS
+  LIN -- "Beats :5044" --> LS
+  WIN -- "Wazuh 1514/1515" --> WM
+  LIN -- "Wazuh 1514/1515" --> WM
+  subgraph SIEM["SIEM server .10 (Ubuntu 22.04)"]
+    LS["Logstash"] --> ES["Elasticsearch + Kibana"]
+    WM["Wazuh manager, indexer, dashboard"]
+    WM -- "python integration" --> TH["TheHive + Cortex"]
+    TH -.-> MISP["MISP"]
+  end
+```
 
-## 🗺️ Roadmap
+All VMs sit on a host-only network `192.168.56.0/24`. Details, port table and known inconsistencies:
+[docs/architecture/01-overview.md](docs/architecture/01-overview.md).
+
+## Hardware requirements
+
+| Resource | Minimum (architecture doc) | Recommended (setup guide 01) |
+|----------|---------------------------|------------------------------|
+| RAM | 24 GB | 32 GB |
+| CPU | 6 cores | 8 cores |
+| Disk | 200 GB SSD | 500 GB SSD |
+
+Planned VM allocation: SIEM 12 GB / 4 vCPU / 100 GB, Windows victim 4 GB / 2 / 60 GB, Linux victim 2 GB / 2 / 40 GB,
+Kali 4 GB / 2 / 60 GB. These are design estimates; the lab has not been benchmarked.
+
+## Setup (on your own hardware)
+
+Follow the guides in order. Each ends with a validation checklist.
+
+1. [Hypervisor and VMs (VirtualBox or Proxmox)](docs/setup/01-proxmox-setup.md)
+2. [SIEM server preparation](docs/setup/02-siem-server.md)
+3. [Wazuh manager](docs/setup/03-wazuh-install.md)
+4. [Elasticsearch, Logstash, Kibana](docs/setup/04-elk-install.md)
+5. [Suricata](docs/setup/05-suricata-install.md)
+6. [TheHive, Cortex, MISP](docs/setup/06-thehive-misp.md)
+7. [Windows agents](docs/setup/07-agents-windows.md)
+8. [Linux agents](docs/setup/08-agents-linux.md)
+
+API keys and tokens are never committed: copy [`.env.example`](.env.example) to `.env` for the Python tools.
+
+## Detection use-cases
+
+| Use-case | ATT&CK | Sigma | Wazuh | Suricata |
+|----------|--------|-------|-------|----------|
+| SSH brute force | T1110.001 | SOC-050 | 100050, 100051 | 9000001 |
+| Encoded PowerShell | T1059.001 | SOC-010 | - | - |
+| Windows event log cleared | T1070.001 | SOC-040 | - | - |
+| Mimikatz / LSASS access | T1003.001 | SOC-051 | - | - |
+| Credential file access, sudo abuse, cron/SSH-key persistence, reverse shells | various | - | 100012-100052 | - |
+| Network scanning, C2 ports, DNS tunnelling, web attacks | T1046, T1071, T1048.003, T1190 | - | 100060 | 9000010-9000070 |
+
+Full list, the planned-but-unwritten rules, and validation status: [Detection Catalog](docs/detections/catalog.md).
+
+Example: the log-clearing Sigma rule converted to an Elasticsearch query by `make sigma`:
+
+```text
+winlog.channel:Security AND (event.code:1102 OR (event.code:104 AND winlog.provider_name:Microsoft\-Windows\-Eventlog))
+```
+
+### IOC enricher demo output
+
+Real output of `make demo` (synthetic data using RFC 5737 documentation IP ranges, shortened):
+
+```text
+[DEMO MODE] Using bundled synthetic data. Verdicts below are NOT real threat intelligence.
+
+[*] Enriching IP: 192.0.2.10
+============================================================
+  IoC: 192.0.2.10
+  Type: IP
+  Verdict: MALICIOUS
+  Confidence: 97%
+  Abuse Reports: 412
+  Sources: abuseipdb, shodan
+============================================================
+...
+Summary: 3/6 IoCs flagged as malicious
+```
+
+With real keys in `.env`: `python tools/ioc-enricher/ioc_enricher.py --ip <address>`, `--hash <md5|sha256>` or `--file iocs.txt`.
+
+## Status and roadmap
+
+Honest summary of where this stands:
+
+- **Done:** repository, architecture and ADRs, all eight setup guides, the detection content listed above, two runbooks, two
+  simulation playbooks, the IOC enricher, CI.
+- **Not demonstrated:** there is no recorded end-to-end run of the lab in this repository. No detection has been validated
+  against a live attack and no simulation results have been written up. CI proves that rule files are syntactically valid
+  (Sigma parses, Wazuh XML is well-formed, Suricata accepts the rules), not that alerts fire.
+- **Not written yet:** Zeek (listed in the design, no guide), most of the planned rules in the catalog, Kibana dashboards, and
+  domain enrichment in the IOC enricher (`--domain` is a stub). The Wazuh-to-TheHive integration exists only as a snippet in guide 06.
+- **Known design issues** (found by cross-reading the docs): MISP and the Wazuh dashboard both default to port 443, and the
+  12 GB SIEM VM is likely tight. See [the architecture notes](docs/architecture/01-overview.md#known-gaps-and-inconsistencies).
 
 | Milestone | Scope | Status |
 |-----------|-------|--------|
-| [M1 — Foundation](../../milestone/1) | Repo setup, architecture docs, lab networking | 🔄 In Progress |
-| [M2 — Core SIEM](../../milestone/2) | Wazuh + ELK operational, first logs flowing | ⏳ Planned |
-| [M3 — Log Sources](../../milestone/3) | Windows, Linux, Suricata, nginx agents | ⏳ Planned |
-| [M4 — Detection Engineering](../../milestone/4) | 30+ Sigma rules, ATT&CK coverage, dashboards | ⏳ Planned |
-| [M5 — Attack Simulations](../../milestone/5) | Atomic Red Team validation of all detections | ⏳ Planned |
-| [M6 — SOAR & Threat Intel](../../milestone/6) | TheHive + Cortex + MISP integration | ⏳ Planned |
-| [M7 — Documentation & Polish](../../milestone/7) | Runbooks, reports, demo video | ⏳ Planned |
+| M1 Foundation | Repo, architecture docs, lab networking | Docs done |
+| M2 Core SIEM | Wazuh + ELK operational | Guides written, no recorded deployment |
+| M3 Log sources | Windows, Linux, Suricata, nginx | Guides written |
+| M4 Detection engineering | 30+ Sigma rules, coverage map | In progress (4 Sigma rules) |
+| M5 Attack simulations | Validate detections | Playbooks written, results pending |
+| M6 SOAR and threat intel | TheHive + Cortex + MISP integration | Guide written |
+| M7 Polish | Reports, demo | Pending |
 
----
+### Design notes worth knowing
 
-## 🚀 Quick Start
+- Two pipelines by design: Wazuh for host detections and alerting, standalone ELK for raw-log hunting; ports are offset (9200 vs 9201).
+- Sigma is the intended source of truth ([ADR-003](docs/architecture/adr/ADR-003-sigma-canonical-format.md)), but today the Wazuh
+  and Suricata rules are hand-written.
+- Sigma's old `count() by` pipe syntax is rejected by current pySigma, so SOC-050 uses a correlation rule instead.
+- Suricata rules that span several lines must end each line with a backslash; without it Suricata fails to parse them.
 
-> **Prerequisites:** 32GB RAM minimum, 500GB storage, VirtualBox or Proxmox installed.
+## Repository structure
 
-```bash
-# 1. Clone the repository
-git clone https://github.com/YOUR_USERNAME/soc-home-lab.git
-cd soc-home-lab
-
-# 2. Follow the setup guide in order
-# Start here:
-cat docs/setup/01-proxmox-setup.md
+```text
+.
+├── .devcontainer/        Codespaces / dev container (Python, make setup, demo)
+├── .github/              CI workflow, issue and PR templates
+├── detections/           sigma/, wazuh/, suricata/, elastic/
+├── docs/                 architecture/ (+ADRs), setup/, detections/, runbooks/
+├── infrastructure/       ansible/ (Wazuh agent playbook), scripts/ (backlog bootstrap)
+├── simulations/manual/   attack playbooks
+├── threat-intel/         MISP feed notes
+├── tools/ioc-enricher/   IOC enrichment CLI + synthetic sample data
+├── tests/                offline tests: doc links, detection files, IOC enricher
+├── Makefile              setup, demo, lint, test, sigma, check
+└── .env.example          optional API keys for the Python tools
 ```
 
-Full setup walkthrough → [docs/setup/](docs/setup/)
+## Testing and CI
 
----
+`make check` runs yamllint, ruff, pytest (relative doc links, Sigma/Wazuh/Suricata file structure, IOC enricher with mocked
+HTTP) and Sigma validation. [CI](.github/workflows/ci.yml) additionally runs a real Suricata `-T` configuration test and an
+Ansible `--syntax-check`. No `docker compose` file exists because the stack is VM-based.
 
-## 📂 Repository Structure
+## Security notes
 
-```
-soc-home-lab/
-├── .github/                  # Issue templates, CI workflows, PR template
-├── docs/
-│   ├── architecture/         # Design docs, network diagrams, ADRs
-│   ├── setup/                # Step-by-step installation guides
-│   ├── detections/           # Detection catalog, rule writing guide
-│   ├── runbooks/             # Incident response playbooks
-│   └── reports/              # Attack simulation reports & post-mortems
-├── infrastructure/
-│   ├── ansible/              # Automated agent provisioning
-│   └── scripts/              # Utility shell scripts
-├── detections/
-│   ├── sigma/                # Portable Sigma rules (mapped to ATT&CK)
-│   ├── wazuh/                # Wazuh custom rules (XML)
-│   ├── suricata/             # Suricata network signatures
-│   └── elastic/              # EQL / KQL saved queries
-├── dashboards/               # Kibana dashboard exports (NDJSON)
-├── simulations/              # Attack playbooks and Atomic Red Team mappings
-├── threat-intel/             # MISP feed configs, IoC enrichment tools
-└── tools/                    # Python utilities (log generator, triage helper)
-```
+- Everything is designed for an isolated lab network. The standalone Elasticsearch has security disabled on purpose for the lab;
+  do not copy that setting anywhere real. TheHive's vendor-default credentials appear only with a "change immediately" warning.
+- IP addresses in the repo are the private lab range `192.168.56.0/24` or RFC 5737 documentation addresses. No secrets are
+  committed; see [SECURITY.md](SECURITY.md).
+- Attack simulations are for your own isolated lab only.
 
----
+## Contributing
 
-## 🎯 Detection Coverage
+Issues and suggestions are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md).
 
-Current ATT&CK coverage is tracked in the [Detection Catalog](docs/detections/catalog.md).
+## License and author
 
-| Tactic | Rules | Validated |
-|--------|-------|-----------|
-| Initial Access | 0 | 0 |
-| Execution | 0 | 0 |
-| Persistence | 0 | 0 |
-| Privilege Escalation | 0 | 0 |
-| Defense Evasion | 0 | 0 |
-| Credential Access | 0 | 0 |
-| Discovery | 0 | 0 |
-| Lateral Movement | 0 | 0 |
-| Collection | 0 | 0 |
-| Exfiltration | 0 | 0 |
-
-*Table auto-updated as rules are added in [Milestone 4](../../milestone/4)*
-
----
-
-## 📋 Contributing
-
-This is a learning project built in public. Contributions, suggestions and issue reports are welcome.
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
----
-
-## ⚠️ Legal Disclaimer
-
-All attack simulations in this project are performed in an **isolated, private lab environment** with no connection to production networks. Tools and techniques documented here are for **educational and defensive purposes only**. The author does not condone unauthorized access to computer systems.
-
----
-
-## 📄 License
-
-MIT — see [LICENSE](LICENSE)
+MIT, see [LICENSE](LICENSE). By [Eduardo Fernandes](https://github.com/EduardoRochaFernandes).

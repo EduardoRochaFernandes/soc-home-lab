@@ -1,109 +1,85 @@
 # Detection Catalog
 
-This catalog tracks all detection rules in the project, their ATT&CK mapping, log sources, severity, and validation status.
+This catalog lists what actually exists in `detections/` and what is still only planned.
 
-**Rule format:** All rules are authored in [Sigma](https://github.com/SigmaHQ/sigma) and converted to target backends. See [Rule Writing Guide](rule-writing-guide.md).
+**Nothing here has been validated against a live attack yet.** The simulation playbooks in
+[`simulations/manual/`](../../simulations/manual/) describe how to do it; the results have not been recorded in this repository.
 
----
+**What CI checks:** Sigma rules parse and pass `sigma check` (ATT&CK tag validation excluded, see the workflow comment),
+the Wazuh XML is well-formed with unique rule IDs, and the Suricata local rules are syntax-checked by a real Suricata binary.
+That proves the files are valid, not that the detections fire.
 
-## Coverage Summary
-
-| Tactic | Total Rules | Validated | Coverage |
-|--------|-------------|-----------|----------|
-| Initial Access | 2 | 0 | 🔴 Low |
-| Execution | 4 | 0 | 🔴 Low |
-| Persistence | 3 | 0 | 🔴 Low |
-| Privilege Escalation | 2 | 0 | 🔴 Low |
-| Defense Evasion | 3 | 0 | 🔴 Low |
-| Credential Access | 3 | 0 | 🔴 Low |
-| Discovery | 2 | 0 | 🔴 Low |
-| Lateral Movement | 2 | 0 | 🔴 Low |
-| Collection | 1 | 0 | 🔴 Low |
-| Exfiltration | 1 | 0 | 🔴 Low |
-| **Total** | **23** | **0** | |
-
-*Rules are added progressively through Milestone 4. Validated = simulation confirmed alert fires.*
+**Rule format:** rules are authored in [Sigma](https://github.com/SigmaHQ/sigma) where the log source allows it. See the
+[Rule Writing Guide](rule-writing-guide.md) and [ADR-003](../architecture/adr/ADR-003-sigma-canonical-format.md).
 
 ---
 
-## Rule Index
+## Implemented
 
-### Initial Access
+### Sigma rules (`detections/sigma/`)
 
-| Rule ID | Title | Technique | Log Source | Severity | Validated |
-|---------|-------|-----------|------------|----------|-----------|
-| [SOC-001](../../detections/sigma/initial-access/SOC-001-web-shell-upload.yml) | Web Shell Upload via nginx | T1505.003 | nginx | High | ❌ |
-| [SOC-002](../../detections/sigma/initial-access/SOC-002-exploit-public-facing.yml) | Suspicious HTTP Error Spike | T1190 | Suricata | Medium | ❌ |
+| Rule ID | Title | Technique | Log source | Level | Validated on a live lab |
+|---------|-------|-----------|------------|-------|-------------------------|
+| [SOC-010](../../detections/sigma/execution/SOC-010-powershell-encoded.yml) | PowerShell Encoded Command Execution | T1059.001 | Windows process creation (Sysmon EID 1) | High | No |
+| [SOC-040](../../detections/sigma/defense-evasion/SOC-040-log-clearing-windows.yml) | Windows Security Event Log Cleared | T1070.001 | Windows Security / System | Critical | No |
+| [SOC-050](../../detections/sigma/credential-access/SOC-050-ssh-bruteforce.yml) | SSH Brute Force (event-count correlation) | T1110.001 | Linux auth.log | High | No |
+| [SOC-051](../../detections/sigma/credential-access/SOC-051-mimikatz-indicators.yml) | Mimikatz LSASS Memory Access | T1003.001 | Sysmon process access (EID 10) | Critical | No |
 
-### Execution
+### Wazuh rules (`detections/wazuh/local_rules.xml`)
 
-| Rule ID | Title | Technique | Log Source | Severity | Validated |
-|---------|-------|-----------|------------|----------|-----------|
-| [SOC-010](../../detections/sigma/execution/SOC-010-powershell-encoded.yml) | PowerShell Encoded Command | T1059.001 | Sysmon (EID 1) | High | ❌ |
-| [SOC-011](../../detections/sigma/execution/SOC-011-powershell-scriptblock.yml) | PowerShell Script Block Logging — Suspicious Keywords | T1059.001 | PowerShell/Operational | High | ❌ |
-| [SOC-012](../../detections/sigma/execution/SOC-012-linux-bash-reverse-shell.yml) | Bash Reverse Shell Patterns | T1059.004 | auditd | High | ❌ |
-| [SOC-013](../../detections/sigma/execution/SOC-013-wmi-execution.yml) | WMI Process Execution | T1047 | Sysmon (EID 1) | Medium | ❌ |
+Hand-written Wazuh XML. The rule IDs are in the local range 100000-199999. Not loaded into a Wazuh manager by CI.
 
-### Persistence
+| Wazuh ID(s) | Catalog ID | What it matches | Technique |
+|-------------|------------|-----------------|-----------|
+| 100050, 100051 | SOC-050 | Repeated SSH failures / invalid users from one IP | T1110.001, T1110.003 |
+| 100040, 100041 | SOC-041 | auditd stopped or reconfigured | T1562.012 |
+| 100020 | SOC-020 | Cron modification (auditd key `cron`) | T1053.003 |
+| 100022 | SOC-022 | `authorized_keys` changed (syscheck) | T1098.004 |
+| 100052 | SOC-052 | Access to `/etc/shadow`, `/etc/passwd` | T1003.008 |
+| 100030 | SOC-030 | sudo used to spawn a shell or interpreter | T1548.003 |
+| 100012 | SOC-012 | Reverse-shell patterns in audited commands | T1059.004 |
+| 100080 | SOC-080 | Archive utility execution (data staging hint) | T1074 |
+| 100060 | SOC-060 | Network scanning tool executed on a host | T1046 |
+| 100100 | - | Kernel module load/unload | T1547.006 |
+| 100200, 100201 | - | File-integrity changes to critical files and system binaries | T1543 (100201) |
 
-| Rule ID | Title | Technique | Log Source | Severity | Validated |
-|---------|-------|-----------|------------|----------|-----------|
-| [SOC-020](../../detections/sigma/persistence/SOC-020-crontab-modification.yml) | Crontab Modification | T1053.003 | auditd | Medium | ❌ |
-| [SOC-021](../../detections/sigma/persistence/SOC-021-new-service-created.yml) | New Windows Service Created | T1543.003 | Sysmon (EID 13) | High | ❌ |
-| [SOC-022](../../detections/sigma/persistence/SOC-022-ssh-authorized-keys.yml) | SSH Authorized Keys Modified | T1098.004 | auditd | High | ❌ |
+### Suricata rules (`detections/suricata/local.rules`)
 
-### Privilege Escalation
-
-| Rule ID | Title | Technique | Log Source | Severity | Validated |
-|---------|-------|-----------|------------|----------|-----------|
-| [SOC-030](../../detections/sigma/privilege-escalation/SOC-030-sudo-abuse.yml) | Unusual sudo Usage | T1548.003 | auth.log | Medium | ❌ |
-| [SOC-031](../../detections/sigma/privilege-escalation/SOC-031-suid-execution.yml) | SUID Binary Execution | T1548.001 | auditd | High | ❌ |
-
-### Defense Evasion
-
-| Rule ID | Title | Technique | Log Source | Severity | Validated |
-|---------|-------|-----------|------------|----------|-----------|
-| [SOC-040](../../detections/sigma/defense-evasion/SOC-040-log-clearing-windows.yml) | Windows Event Log Cleared | T1070.001 | Security (EID 1102) | Critical | ❌ |
-| [SOC-041](../../detections/sigma/defense-evasion/SOC-041-auditd-tamper.yml) | auditd Service Stopped | T1562.012 | syslog | High | ❌ |
-| [SOC-042](../../detections/sigma/defense-evasion/SOC-042-timestomp.yml) | File Timestamp Modification (Timestomping) | T1070.006 | auditd | Medium | ❌ |
-
-### Credential Access
-
-| Rule ID | Title | Technique | Log Source | Severity | Validated |
-|---------|-------|-----------|------------|----------|-----------|
-| [SOC-050](../../detections/sigma/credential-access/SOC-050-ssh-bruteforce.yml) | SSH Brute Force Attack | T1110.001 | auth.log / Suricata | High | ❌ |
-| [SOC-051](../../detections/sigma/credential-access/SOC-051-mimikatz-indicators.yml) | Mimikatz In-Memory Indicators | T1003.001 | Sysmon (EID 10) | Critical | ❌ |
-| [SOC-052](../../detections/sigma/credential-access/SOC-052-passwd-shadow-access.yml) | /etc/shadow or /etc/passwd Read | T1003.008 | auditd | High | ❌ |
-
-### Discovery
-
-| Rule ID | Title | Technique | Log Source | Severity | Validated |
-|---------|-------|-----------|------------|----------|-----------|
-| [SOC-060](../../detections/sigma/discovery/SOC-060-network-scan.yml) | Network Port Scan Detected | T1046 | Suricata | Medium | ❌ |
-| [SOC-061](../../detections/sigma/discovery/SOC-061-ad-enumeration.yml) | Active Directory Enumeration | T1087.002 | Security Event Logs | Medium | ❌ |
-
-### Lateral Movement
-
-| Rule ID | Title | Technique | Log Source | Severity | Validated |
-|---------|-------|-----------|------------|----------|-----------|
-| [SOC-070](../../detections/sigma/lateral-movement/SOC-070-psexec.yml) | PsExec / Remote Execution | T1021.002 | Sysmon (EID 1, 17) | High | ❌ |
-| [SOC-071](../../detections/sigma/lateral-movement/SOC-071-rdp-brute.yml) | RDP Brute Force | T1110.001 | Security (EID 4625) | High | ❌ |
-
-### Collection & Exfiltration
-
-| Rule ID | Title | Technique | Log Source | Severity | Validated |
-|---------|-------|-----------|------------|----------|-----------|
-| [SOC-080](../../detections/sigma/collection/SOC-080-data-staging.yml) | Large Archive Creation | T1074 | auditd / Sysmon | Medium | ❌ |
-| [SOC-090](../../detections/sigma/exfiltration/SOC-090-dns-tunneling.yml) | DNS Tunneling Indicators | T1048.003 | Suricata / Zeek | High | ❌ |
+SIDs 9000001-9099999. SSH and RDP brute force, Nmap SYN/version scans, outbound connections to common C2 ports, DNS tunnelling
+heuristics, SQL injection / XSS / directory traversal in HTTP URIs, a `python-requests` user-agent heuristic and HTTP on
+non-standard ports.
 
 ---
 
-## Coverage Heatmap (ATT&CK Navigator)
+## Planned (not written yet)
 
-An ATT&CK Navigator layer file is maintained at [`docs/reports/attck-coverage.json`](../reports/attck-coverage.json). Import it at https://mitre-attack.github.io/attack-navigator/ to visualise coverage.
+These IDs were reserved when the project was scaffolded. There is no rule file for any of them.
+
+| Rule ID | Idea | Technique |
+|---------|------|-----------|
+| SOC-001 | Web shell upload via nginx | T1505.003 |
+| SOC-002 | HTTP error spike on a public-facing app | T1190 |
+| SOC-011 | PowerShell script block logging, suspicious keywords | T1059.001 |
+| SOC-013 | WMI process execution | T1047 |
+| SOC-021 | New Windows service created | T1543.003 |
+| SOC-031 | SUID binary execution | T1548.001 |
+| SOC-042 | File timestamp modification (timestomping) | T1070.006 |
+| SOC-061 | Active Directory enumeration | T1087.002 |
+| SOC-070 | PsExec / remote execution | T1021.002 |
+| SOC-071 | RDP brute force (Windows side) | T1110.001 |
+| SOC-090 | DNS tunnelling (needs Zeek or Suricata DNS logs) | T1048.003 |
+
+Sigma versions of the Wazuh-only rules above (SOC-012, 020, 022, 030, 041, 052, 060, 080) are also still to do.
 
 ---
 
-## Adding New Rules
+## Notes on ATT&CK tags
 
-See [Rule Writing Guide](rule-writing-guide.md) and open a [Detection Rule Issue](../../issues/new?template=detection-rule.yml).
+Sigma tactic tags use hyphens (`attack.credential-access`). The ATT&CK knowledge base keeps evolving; recent versions
+reorganised "Defense Evasion", so `sigma check`'s tag validator (which downloads the latest ATT&CK data) rejects tags that were
+valid when the rules were written. CI therefore excludes that one validator rather than failing on upstream taxonomy changes.
+
+## Adding new rules
+
+See the [Rule Writing Guide](rule-writing-guide.md) and open a
+[Detection Rule issue](https://github.com/EduardoRochaFernandes/soc-home-lab/issues/new?template=detection-rule.yml).
