@@ -1,6 +1,6 @@
 # Simulation: SSH Brute Force Attack
 
-**ATT&CK Technique:** T1110.001 — Brute Force: Password Spraying  
+**ATT&CK Technique:** T1110.001 — Brute Force: Password Guessing  
 **Detection Rule:** SOC-050  
 **Expected Severity:** High  
 **Estimated Duration:** 10 minutes

@@ -13,8 +13,8 @@ Prerequisites:
     gh auth login  (or set GITHUB_TOKEN in .env)
 
 Usage:
-    python3 scripts/create_github_issues.py --repo YOUR_USERNAME/soc-home-lab
-    python3 scripts/create_github_issues.py --repo YOUR_USERNAME/soc-home-lab --dry-run
+    python3 infrastructure/scripts/create_github_issues.py --repo YOUR_USERNAME/soc-home-lab
+    python3 infrastructure/scripts/create_github_issues.py --repo YOUR_USERNAME/soc-home-lab --dry-run
 """
 
 import argparse
@@ -250,7 +250,7 @@ Refs: `docs/setup/08-agents-linux.md`
         "title": "[Detection] T1110.001 — SSH Brute Force",
         "body": """## ATT&CK
 - **Tactic:** Credential Access
-- **Technique:** T1110.001 — Password Spraying (SSH)
+- **Technique:** T1110.001 — Password Guessing (SSH)
 - **Rule ID:** SOC-050
 
 ## Tasks

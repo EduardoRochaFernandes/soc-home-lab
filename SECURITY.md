@@ -14,7 +14,7 @@ Open a **private GitHub Security Advisory** on this repository:
 
 1. Go to **Security → Advisories → New draft security advisory**
 2. Describe the issue, the impact, and steps to reproduce
-3. You will receive a response within 72 hours
+3. This is a student project, so responses are best-effort
 
 Please do **not** open a public issue for security vulnerabilities.
 

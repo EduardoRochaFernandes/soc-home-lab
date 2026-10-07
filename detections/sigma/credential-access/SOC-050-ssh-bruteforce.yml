@@ -1,4 +1,5 @@
-title: SSH Brute Force Attack
+title: SSH Failed Password Attempt
+name: ssh_failed_password
 id: 3f8d2a1c-9b4e-4f7a-8c2d-1e5f6a3b9c8d
 status: experimental
 description: |
@@ -13,7 +14,7 @@ references:
 author: SOC Home Lab
 date: 2025/01/01
 tags:
-  - attack.credential_access
+  - attack.credential-access
   - attack.t1110.001
 logsource:
   product: linux
@@ -22,10 +23,29 @@ detection:
   selection:
     program: sshd
     message|contains: 'Failed password'
-  timeframe: 60s
-  condition: selection | count() by src_ip > 5
+  condition: selection
 falsepositives:
   - Misconfigured SSH client with incorrect credentials
   - Automated scripts with hardcoded wrong credentials
   - Authorized penetration testing (document in change management log)
+level: high
+---
+title: SSH Brute Force Attack
+id: 7b1e4c52-6a0d-4d8e-9f3a-2c5d8e1a4b70
+status: experimental
+description: More than 5 failed SSH password attempts from one source IP within 60 seconds.
+author: SOC Home Lab
+date: 2025/01/01
+tags:
+  - attack.credential-access
+  - attack.t1110.001
+correlation:
+  type: event_count
+  rules:
+    - ssh_failed_password
+  group-by:
+    - src_ip
+  timespan: 60s
+  condition:
+    gt: 5
 level: high

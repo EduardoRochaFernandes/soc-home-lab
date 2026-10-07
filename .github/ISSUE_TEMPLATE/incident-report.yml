@@ -41,7 +41,7 @@ body:
       label: ATT&CK Techniques Used
       description: List each technique ID and name
       placeholder: |
-        - T1110.001 — Password Spraying
+        - T1110.001 — Password Guessing
         - T1021.001 — Remote Desktop Protocol
     validations:
       required: true

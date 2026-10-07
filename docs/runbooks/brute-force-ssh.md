@@ -1,7 +1,7 @@
 # Runbook: SSH Brute Force Attack
 
 **Detection Rule:** SOC-050  
-**ATT&CK Technique:** T1110.001 — Brute Force: Password Spraying  
+**ATT&CK Technique:** T1110.001 — Brute Force: Password Guessing  
 **Severity:** High  
 **SLA:** Acknowledge within 15 minutes, initial triage within 30 minutes
 

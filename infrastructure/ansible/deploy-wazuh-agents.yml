@@ -2,6 +2,9 @@
 # deploy-wazuh-agents.yml
 # Installs and registers Wazuh agents on all Linux target hosts
 #
+# The manager address is injected at install time through WAZUH_MANAGER, so no ossec.conf template is needed.
+# The Windows host is not covered here: install its agent manually (docs/setup/07-agents-windows.md).
+#
 # Usage:
 #   ansible-playbook -i inventory/hosts.yml deploy-wazuh-agents.yml
 #   ansible-playbook -i inventory/hosts.yml deploy-wazuh-agents.yml --limit linux-victim
@@ -32,26 +35,17 @@
       ansible.builtin.apt:
         name: wazuh-agent
         state: present
-        update_cache: yes
+        update_cache: true
       environment:
         WAZUH_MANAGER: "{{ wazuh_manager }}"
         WAZUH_AGENT_GROUP: "{{ wazuh_agent_group }}"
 
-    - name: Configure Wazuh agent
-      ansible.builtin.template:
-        src: templates/ossec.conf.j2
-        dest: /var/ossec/etc/ossec.conf
-        owner: root
-        group: wazuh
-        mode: '0640'
-      notify: restart wazuh-agent
-
     - name: Enable and start Wazuh agent
       ansible.builtin.systemd:
         name: wazuh-agent
-        enabled: yes
+        enabled: true
         state: started
-        daemon_reload: yes
+        daemon_reload: true
 
     - name: Verify agent is connected
       ansible.builtin.command: /var/ossec/bin/wazuh-control status
@@ -61,9 +55,3 @@
     - name: Show agent status
       ansible.builtin.debug:
         var: wazuh_status.stdout_lines
-
-  handlers:
-    - name: restart wazuh-agent
-      ansible.builtin.systemd:
-        name: wazuh-agent
-        state: restarted

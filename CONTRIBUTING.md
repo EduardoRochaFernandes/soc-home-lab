@@ -52,7 +52,7 @@ This project follows [Conventional Commits](https://www.conventionalcommits.org/
 ```bash
 feat(wazuh): add custom rules for SSH brute force detection
 
-detection(sigma): add T1110.001 - password spraying via failed logons
+detection(sigma): add T1110.003 - password spraying via failed logons
 
 docs(runbooks): add SSH brute force incident response playbook
 
@@ -192,4 +192,4 @@ level: <critical|high|medium|low|informational>
 
 ---
 
-*Questions? Open a [Discussion](../../discussions) or an issue.*
+*Questions? Open a [issue](https://github.com/EduardoRochaFernandes/soc-home-lab/issues).*

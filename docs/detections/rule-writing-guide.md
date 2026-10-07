@@ -38,7 +38,7 @@ author: <your name>
 date: YYYY/MM/DD
 modified: YYYY/MM/DD
 tags:
-  - attack.<tactic_name>         # e.g. attack.credential_access
+  - attack.<tactic_name>         # e.g. attack.credential-access
   - attack.t<id>                 # e.g. attack.t1110.001
 logsource:
   product: <windows|linux|network>
@@ -119,25 +119,13 @@ level: <critical|high|medium|low|informational>
 
 ## Worked Example — SSH Brute Force
 
+The real file is [`SOC-050-ssh-bruteforce.yml`](../../detections/sigma/credential-access/SOC-050-ssh-bruteforce.yml). It is two
+YAML documents in one file: a base rule that matches a single failed login, and a Sigma *correlation* rule that counts them.
+
 ```yaml
-title: SSH Brute Force Attack
-id: 3f8d2a1c-9b4e-4f7a-8c2d-1e5f6a3b9c8d
-status: stable
-description: |
-  Detects a high rate of failed SSH authentication attempts from a single source,
-  indicating a brute-force or password spraying attack.
-  
-  Attackers use this technique to gain initial access or move laterally to systems
-  with SSH exposed, particularly targeting weak or default credentials.
-references:
-  - https://attack.mitre.org/techniques/T1110/001/
-  - https://www.cisa.gov/uscert/ncas/alerts/aa22-054a
-author: SOC Home Lab
-date: 2025/01/01
-tags:
-  - attack.credential_access
-  - attack.t1110.001
-  - attack.persistence
+# Document 1: the event
+title: SSH Failed Password Attempt
+name: ssh_failed_password
 logsource:
   product: linux
   service: auth
@@ -145,24 +133,34 @@ detection:
   selection:
     program: sshd
     message|contains: 'Failed password'
-  timeframe: 60s
-  condition: selection | count() by src_ip > 5
-falsepositives:
-  - Misconfigured SSH clients with bad key or wrong username
-  - Automated scripts with hardcoded wrong credentials
-  - Penetration testing activity (document in change log)
-level: high
+  condition: selection
+# ... (id, tags, level, etc. omitted here)
+---
+# Document 2: more than 5 events from one source IP in 60 seconds
+title: SSH Brute Force Attack
+correlation:
+  type: event_count
+  rules:
+    - ssh_failed_password
+  group-by:
+    - src_ip
+  timespan: 60s
+  condition:
+    gt: 5
 ```
 
-Convert to Wazuh format:
+The older `selection | count() by src_ip > 5` pipe syntax is deprecated and rejected by current pySigma, which is why the
+correlation form is used.
+
+Check and convert (the Elasticsearch backend does not convert correlation rules, so convert the Windows rules instead):
+
 ```bash
-sigma convert -t wazuh detections/sigma/credential-access/SOC-050-ssh-bruteforce.yml
+sigma check -x attacktag detections/sigma
+sigma plugin install elasticsearch
+sigma convert -t lucene -p ecs_windows detections/sigma/execution detections/sigma/defense-evasion
 ```
 
-Convert to Elasticsearch EQL:
-```bash
-sigma convert -t elasticsearch-eql detections/sigma/credential-access/SOC-050-ssh-bruteforce.yml
-```
+`make sigma` runs these two steps.
 
 ---
 
